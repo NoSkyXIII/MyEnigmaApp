@@ -1,64 +1,137 @@
 ﻿using System;
+using System.Linq;
 using System.Text;
 
 namespace MyEnigmaApp
 {
     public static class Cipher
     {
-        public static string Encrypt(string input, string key)
+        private static readonly string RussianAlphabetLower = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
+        private static readonly string RussianAlphabetUpper = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
+
+        public enum CipherMethod
         {
-            if (string.IsNullOrEmpty(key)) return input;
+            VigenereRussian,
+            Caesar,
+            Reverse
+        }
+
+        public static string Encrypt(string input, string key, CipherMethod method)
+        {
+            switch (method)
+            {
+                case CipherMethod.VigenereRussian:
+                    return TransformVigenere(input, key, true);
+                case CipherMethod.Caesar:
+                    return CaesarEncrypt(input, 3); // пример: сдвиг на 3
+                case CipherMethod.Reverse:
+                    return Reverse(input);
+                default:
+                    return input;
+            }
+        }
+
+        public static string Decrypt(string input, string key, CipherMethod method)
+        {
+            switch (method)
+            {
+                case CipherMethod.VigenereRussian:
+                    return TransformVigenere(input, key, false);
+                case CipherMethod.Caesar:
+                    return CaesarDecrypt(input, 3);
+                case CipherMethod.Reverse:
+                    return Reverse(input); // reverse для дешифровки тот же
+                default:
+                    return input;
+            }
+        }
+
+        private static string TransformVigenere(string text, string key, bool encrypting)
+        {
+            if (string.IsNullOrEmpty(key))
+                return text;
 
             StringBuilder result = new StringBuilder();
-            key = key.ToUpper();
             int keyIndex = 0;
 
-            foreach (char c in input)
+            foreach (char c in text)
             {
-                if (char.IsLetter(c))
+                if (IsRussianLetter(c))
                 {
                     bool isUpper = char.IsUpper(c);
-                    char offset = isUpper ? 'A' : 'a';
-                    int shift = key[keyIndex % key.Length] - 'A';
-                    char encryptedChar = (char)(((c - offset + shift) % 26) + offset);
-                    result.Append(encryptedChar);
+                    string alphabet = isUpper ? RussianAlphabetUpper : RussianAlphabetLower;
+                    int index = alphabet.IndexOf(c);
+
+                    char keyChar = key[keyIndex % key.Length];
+                    int keyShift = GetShiftFromChar(keyChar);
+
+                    int newIndex;
+                    if (encrypting)
+                        newIndex = (index + keyShift) % alphabet.Length;
+                    else
+                        newIndex = (index - keyShift + alphabet.Length) % alphabet.Length;
+
+                    result.Append(alphabet[newIndex]);
                     keyIndex++;
                 }
                 else
                 {
-                    result.Append(c); // не шифруем пробелы и знаки
+                    result.Append(c); // не шифруем пробелы, знаки, цифры
                 }
             }
 
             return result.ToString();
         }
 
-        public static string Decrypt(string input, string key)
+        private static bool IsRussianLetter(char c)
         {
-            if (string.IsNullOrEmpty(key)) return input;
+            return RussianAlphabetLower.Contains(char.ToLower(c));
+        }
 
+        private static int GetShiftFromChar(char c)
+        {
+            c = char.ToLower(c);
+            if (RussianAlphabetLower.Contains(c))
+                return RussianAlphabetLower.IndexOf(c);
+            else if (char.IsLetter(c))
+                return (char.ToLower(c) - 'a') % 26;
+            else
+                return 0;
+        }
+
+        private static string CaesarEncrypt(string text, int shift)
+        {
             StringBuilder result = new StringBuilder();
-            key = key.ToUpper();
-            int keyIndex = 0;
 
-            foreach (char c in input)
+            foreach (char c in text)
             {
-                if (char.IsLetter(c))
+                if (IsRussianLetter(c))
                 {
                     bool isUpper = char.IsUpper(c);
-                    char offset = isUpper ? 'A' : 'a';
-                    int shift = key[keyIndex % key.Length] - 'A';
-                    char decryptedChar = (char)(((c - offset - shift + 26) % 26) + offset);
-                    result.Append(decryptedChar);
-                    keyIndex++;
+                    string alphabet = isUpper ? RussianAlphabetUpper : RussianAlphabetLower;
+                    int index = alphabet.IndexOf(c);
+                    int newIndex = (index + shift) % alphabet.Length;
+                    result.Append(alphabet[newIndex]);
                 }
                 else
                 {
-                    result.Append(c); // не шифруем пробелы и знаки
+                    result.Append(c);
                 }
             }
 
             return result.ToString();
+        }
+
+        private static string CaesarDecrypt(string text, int shift)
+        {
+            return CaesarEncrypt(text, -shift + RussianAlphabetLower.Length);
+        }
+
+        private static string Reverse(string text)
+        {
+            char[] chars = text.ToCharArray();
+            Array.Reverse(chars);
+            return new string(chars);
         }
     }
 }
